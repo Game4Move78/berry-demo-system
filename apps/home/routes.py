@@ -34,7 +34,7 @@ def sample_page():
     return render_template('pages/sample-page.html')  
 
 @blueprint.route('/demo-system')
-def sample_page():
+def demo_system():
     return render_template('pages/demo-system.html')  
 
 @blueprint.route('/accounts/password-reset/')
