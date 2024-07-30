@@ -2,91 +2,140 @@
 
 {% block title %} Live Updates {% endblock title %}
 
+{% block head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons+Two+Tone">
+{% endblock head %}
+
 {% block content %}
-    <div class="container">
-        <header>
-            <h1>Llama Live Updates</h1>
-            <button onclick="clearMessages()">Clear Messages</button>
-        </header>
-        <main id="channels">
-            <div id="gpu_channel" class="channel">
-                <h2>GPU Llama</h2>
-                <div id="gpu_messages" class="messages"></div>
+  <!-- [ Main Content ] start -->
+  <div class="pc-container">
+    <div class="pc-content">
+      <div class="row">
+        <!-- GPU Llama -->
+        <div class="col-xl-6 col-md-6">
+          <div class="card dashnum-card dashnum-card-small overflow-hidden">
+            <span class="round bg-info small"></span>
+            <span class="round bg-info big"></span>
+            <div class="card-body p-3">
+              <div class="d-flex align-items-center">
+                <div class="avtar avtar-lg bg-light-info">
+                    <i class="material-icons-two-tone">computer</i>
+                </div>
+                <div class="ms-2">
+                  <h4 class="mb-1">GPU Llama</h4>
+                </div>
+              </div>
+              <div id="gpu_messages" class="messages overflow-auto pr-2 mt-3" style="max-height: 400px;"></div>
             </div>
-            <div id="cpu_channel" class="channel">
-                <h2>CPU Llama</h2>
-                <div id="cpu_messages" class="messages"></div>
+          </div>
+        </div>
+        <!-- CPU Llama -->
+        <div class="col-xl-6 col-md-6">
+          <div class="card dashnum-card dashnum-card-small overflow-hidden">
+            <span class="round bg-success small"></span>
+            <span class="round bg-success big"></span>
+            <div class="card-body p-3">
+              <div class="d-flex align-items-center">
+                <div class="avtar avtar-lg bg-light-success">
+                    <i class="material-icons-two-tone">computer</i>
+                </div>
+                <div class="ms-2">
+                  <h4 class="mb-1">CPU Llama</h4>
+                </div>
+              </div>
+              <div id="cpu_messages" class="messages overflow-auto pr-2 mt-3" style="max-height: 400px;"></div>
             </div>
-        </main>
-        <footer>
-            <h2>Send Message</h2>
-            <textarea id="message_input" placeholder="Enter your message" onkeydown="checkEnterKey(event)"></textarea>
-            <button onclick="sendMessage()">Send</button>
-        </footer>
+          </div>
+        </div>
+      </div>
+      <footer class="mt-4">
+        <div class="position-relative">
+          <textarea id="message_input" class="form-control mb-3" placeholder="Enter your message" onkeydown="checkEnterKey(event)"></textarea>
+          <div class="send-container">
+            <span class="h6 mb-0">Send Message</span>
+            <button class="btn send-button ms-2" onclick="sendMessage()">
+                <i class="material-icons-two-tone">send</i>
+            </button>
+          </div>
+        </div>
+      </footer>
     </div>
-    <script>
-        var socket = io.connect('http://' + document.domain + ':' + location.port);
+  </div>
+  <!-- [ Main Content ] end -->
+  <script>
+    var socket = io.connect('http://' + document.domain + ':' + location.port);
 
-        function createMessage(targetDiv) {
-            var newMessage = document.createElement('div');
-            newMessage.classList.add('message');
-            newMessage.textContent = '';
-            targetDiv.appendChild(newMessage);
-            return newMessage;
+    function createMessage(targetDiv, message, isUserMessage = false) {
+        var messageWrapper = targetDiv.lastElementChild;
+
+        if (!messageWrapper || messageWrapper.classList.contains('justify-content-start') !== isUserMessage) {
+            messageWrapper = document.createElement('div');
+            messageWrapper.classList.add('d-flex', 'flex-row', isUserMessage ? 'justify-content-end' : 'justify-content-start', 'mb-4');
+            targetDiv.appendChild(messageWrapper);
         }
 
-        socket.on('message', function(msg) {
-            console.log('Received message:', msg);
+        var messageBubble = document.createElement('div');
+        messageBubble.classList.add('small', 'p-2', 'me-3', 'mb-1', 'rounded-3');
+        if (isUserMessage) {
+            messageBubble.classList.add('bg-primary', 'text-white');
+        } else {
+            messageBubble.classList.add('bg-light', 'text-dark');
+        }
+        messageBubble.textContent = message;
 
-            var data = msg.data;
-            var targetDiv;
-            if (msg.header === 'gpu_channel') {
-                targetDiv = document.getElementById('gpu_messages');
-            } else if (msg.header === 'cpu_channel') {
-                targetDiv = document.getElementById('cpu_messages');
-            } else {
-                console.log('Unknown channel:', msg.header);
-                return;
-            }
+        messageWrapper.appendChild(messageBubble);
+    }
 
-            var newMessage = targetDiv.lastElementChild;
+    socket.on('message', function(msg) {
+        console.log('Received message:', msg);
 
-            if (!newMessage) {
-                newMessage = createMessage(targetDiv);
-                newMessage.textContent = data;
-            } else {
-                newMessage.textContent += data;
-            }
-
-            // Scroll to the bottom of the targetDiv
-            targetDiv.scrollTop = targetDiv.scrollHeight;
-        });
-
-
-        function sendMessage() {
-            createMessage(document.getElementById('gpu_messages'));
-            createMessage(document.getElementById('cpu_messages'));
-            var input = document.getElementById('message_input').value;
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', '/send_message', true);
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.send(JSON.stringify({
-                message: input
-            }));
-            document.getElementById('message_input').value = '';  // Clear the input box after sending the message
+        var data = msg.data;
+        var targetDiv;
+        if (msg.header === 'gpu_channel') {
+            targetDiv = document.getElementById('gpu_messages');
+        } else if (msg.header === 'cpu_channel') {
+            targetDiv = document.getElementById('cpu_messages');
+        } else {
+            console.log('Unknown channel:', msg.header);
+            return;
         }
 
-        function checkEnterKey(event) {
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                sendMessage();
-            }
-        }
+        createMessage(targetDiv, data, false);
 
-        function clearMessages() {
-            document.getElementById('gpu_messages').innerHTML = '';
-            document.getElementById('cpu_messages').innerHTML = '';
+        // Scroll to the bottom of the targetDiv
+        targetDiv.scrollTop = targetDiv.scrollHeight;
+    });
+
+    function sendMessage() {
+        var input = document.getElementById('message_input').value;
+        var gpuMessagesDiv = document.getElementById('gpu_messages');
+        var cpuMessagesDiv = document.getElementById('cpu_messages');
+
+        createMessage(gpuMessagesDiv, input, true);
+        createMessage(cpuMessagesDiv, input, true);
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '/send_message', true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(JSON.stringify({
+            message: input
+        }));
+        document.getElementById('message_input').value = '';  // Clear the input box after sending the message
+    }
+
+    function checkEnterKey(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            sendMessage();
         }
-    </script>
+    }
+
+    function clearMessages() {
+        document.getElementById('gpu_messages').innerHTML = '';
+        document.getElementById('cpu_messages').innerHTML = '';
+    }
+  </script>
 
 {% endblock content %}
