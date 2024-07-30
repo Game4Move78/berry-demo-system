@@ -33,6 +33,10 @@ def icon_tabler():
 def sample_page():
     return render_template('pages/sample-page.html')  
 
+@blueprint.route('/demo-system')
+def sample_page():
+    return render_template('pages/demo-system.html')  
+
 @blueprint.route('/accounts/password-reset/')
 def password_reset():
     return render_template('accounts/password_reset.html')

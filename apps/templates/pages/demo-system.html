@@ -1,0 +1,92 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %} Live Updates {% endblock title %}
+
+{% block content %}
+    <div class="container">
+        <header>
+            <h1>Llama Live Updates</h1>
+            <button onclick="clearMessages()">Clear Messages</button>
+        </header>
+        <main id="channels">
+            <div id="gpu_channel" class="channel">
+                <h2>GPU Llama</h2>
+                <div id="gpu_messages" class="messages"></div>
+            </div>
+            <div id="cpu_channel" class="channel">
+                <h2>CPU Llama</h2>
+                <div id="cpu_messages" class="messages"></div>
+            </div>
+        </main>
+        <footer>
+            <h2>Send Message</h2>
+            <textarea id="message_input" placeholder="Enter your message" onkeydown="checkEnterKey(event)"></textarea>
+            <button onclick="sendMessage()">Send</button>
+        </footer>
+    </div>
+    <script>
+        var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+        function createMessage(targetDiv) {
+            var newMessage = document.createElement('div');
+            newMessage.classList.add('message');
+            newMessage.textContent = '';
+            targetDiv.appendChild(newMessage);
+            return newMessage;
+        }
+
+        socket.on('message', function(msg) {
+            console.log('Received message:', msg);
+
+            var data = msg.data;
+            var targetDiv;
+            if (msg.header === 'gpu_channel') {
+                targetDiv = document.getElementById('gpu_messages');
+            } else if (msg.header === 'cpu_channel') {
+                targetDiv = document.getElementById('cpu_messages');
+            } else {
+                console.log('Unknown channel:', msg.header);
+                return;
+            }
+
+            var newMessage = targetDiv.lastElementChild;
+
+            if (!newMessage) {
+                newMessage = createMessage(targetDiv);
+                newMessage.textContent = data;
+            } else {
+                newMessage.textContent += data;
+            }
+
+            // Scroll to the bottom of the targetDiv
+            targetDiv.scrollTop = targetDiv.scrollHeight;
+        });
+
+
+        function sendMessage() {
+            createMessage(document.getElementById('gpu_messages'));
+            createMessage(document.getElementById('cpu_messages'));
+            var input = document.getElementById('message_input').value;
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/send_message', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.send(JSON.stringify({
+                message: input
+            }));
+            document.getElementById('message_input').value = '';  // Clear the input box after sending the message
+        }
+
+        function checkEnterKey(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function clearMessages() {
+            document.getElementById('gpu_messages').innerHTML = '';
+            document.getElementById('cpu_messages').innerHTML = '';
+        }
+    </script>
+
+{% endblock content %}
